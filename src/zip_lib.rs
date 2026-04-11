@@ -21,17 +21,8 @@ fn find_index(nodes: &mut Vec<Node<u8, u32>>, item: &mut Node<u8, u32>) -> usize
     min_index 
 }
 
-
-fn _update_first_byte(path: &String, bits_in_last_byte: u8) -> Result<(), String> {
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .open(path)
-        .map_err(|e| format!("Problem reading the file: {}", e))?;
-    file.seek(SeekFrom::Start(0))
-        .map_err(|e| format!("Problem seeking file: {}", e))?;
-    file.write_all(&[bits_in_last_byte])
-        .map_err(|e| format!("Problem writing in the file: {}", e))?;
-    Ok(())
+fn take_bit(num: u32, position: u8) -> u8 {
+    if (num & (1 << position)) == (1 << position) {1} else {0}
 }
 
 
@@ -53,14 +44,24 @@ fn bubble_sort_vectors<T: Ord, U: Ord>(vector_1: &mut Vec<T>, vector_2: &mut Vec
 
 
 fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize) -> () {
-    for _ in 0..(num_of_elements - 1) {
-        let left = nodes.remove(0);
-        let right = nodes.remove(0);
+    if num_of_elements == 1 {
+        let left: Node<u8, u32> = nodes.remove(0);
+        let right: Node<u8, u32> = Node::new(None, 0);
         let mut new_node: Node<u8, u32> = Node::new(None, left.value + right.value);
         new_node.left = Some(Box::new(left));
         new_node.right = Some(Box::new(right));
-        let index = find_index(nodes, &mut new_node);
-        nodes.insert(index, new_node);
+        nodes.insert(0, new_node);
+    }
+    else {
+        for _ in 0..(num_of_elements - 1) {
+            let left: Node<u8, u32> = nodes.remove(0);
+            let right: Node<u8, u32> = nodes.remove(0);
+            let mut new_node: Node<u8, u32> = Node::new(None, left.value + right.value);
+            new_node.left = Some(Box::new(left));
+            new_node.right = Some(Box::new(right));
+            let index = find_index(nodes, &mut new_node);
+            nodes.insert(index, new_node);
+        }
     }
 }
 
@@ -81,6 +82,10 @@ fn canonical_code(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashMa
 pub fn zip(input_filename: String, output_filename: String) -> Result<String, String> {
     let mut input_file = fs::File::open(&input_filename)
         .map_err(|e| format!("Problem reading the file: {}", e))?;
+
+    let original_size = input_file.metadata()
+        .map_err(|e| format!("Failed to get metadata: {}", e))?
+        .len() as u64;
 
     let mut buffer = [0u8; 1];
     let mut hashmap: HashMap<u8, u32>= HashMap::new();
@@ -121,10 +126,15 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     bubble_sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
 
-    let mut file = File::create(output_filename)
+    let mut file = File::create(&output_filename)
         .map_err(|_| "Problem creating the file".to_string())?;
 
-    file.write_all(&[0]).map_err(|_| "Problem writing the file".to_string())?;
+     file.write_all(&original_size.to_le_bytes())
+        .map_err(|_| "Problem writing original size".to_string())?;
+
+    file.write_all(&[0])
+        .map_err(|_| "Problem writing the file".to_string())?;
+
     for index in 0..=255 {
         match keys.iter().position(|&item| item == index) {
             Some(result) => file.write_all(&[values[result]]).map_err(|_| "Problem writing the file".to_string())?,
@@ -134,10 +144,48 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
 
     input_file.seek(SeekFrom::Start(0))
         .map_err(|e| format!("Problem seeking file: {}", e))?;
-    let mut _buffer_for_output = 0u8;
+    let mut buffer_for_output = 0u8;
+    let mut buffer_length = 0;
+
     while input_file.read(&mut buffer).map_err(|_| "Problem reading the file".to_string())? != 0 { 
-        let _byte = buffer[0];
+        let byte = buffer[0];
+        let value_length = match keys.iter().position(|&key| key == byte) {
+            Some(index) => values[index],
+            None => return Err("Can't find value by key".to_string())
+        };
+        println!("{} {}", byte, value_length);
+
+        for index in 0..value_length {
+            let bit = take_bit(hashmap[&byte], value_length - (index + 1));
+
+            buffer_for_output <<= 1;
+            buffer_for_output += bit;
+
+            buffer_length += 1;
+            if buffer_length == 8 {
+                println!("{:08b}", buffer_for_output);
+                file.write_all(&[buffer_for_output]).map_err(|_| "Problem writing the file".to_string())?;
+                buffer_length = 0;
+                buffer_for_output = 0u8;
+            }
+        }
     }
+
+    if buffer_length > 0 {
+        buffer_for_output <<= 8 - buffer_length;
+        println!("{:08b}", buffer_for_output);
+        file.write_all(&[buffer_for_output]).map_err(|_| "Problem writing the file".to_string())?;
+    }
+    else {
+        buffer_length = 8;
+    }
+
+    file.seek(SeekFrom::Start(8)) // 8 байт размера (u64) — если u32, то 4
+        .map_err(|e| format!("Problem seeking file: {}", e))?;
+    file.write_all(&[buffer_length])
+        .map_err(|_| "Problem writing bits_in_last_byte".to_string())?;
+
+    
 
     Ok("File was zipped correctly.".to_string())
 }

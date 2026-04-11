@@ -49,6 +49,8 @@ pub fn dfs(hashmap: &mut HashMap<u8, u32>, node: Box<Node<u8, u32>>, deep: u32) 
     }
 
     if flag == 2 {
-        hashmap.insert(match node.key {Some(result) => result, None => 0}, deep);
+        if let Some(key) = node.key {
+            hashmap.insert(key, deep);
+        }
     }
 }
