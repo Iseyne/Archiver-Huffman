@@ -44,7 +44,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
         values.push(*value as u8);
     }
     
-    bubble_sort_vectors(&mut values, &mut keys);
+    sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
 
     let mut file = File::create(&output_filename)
@@ -130,7 +130,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     if keys.len() == 0 {
         return Err("The unzipped file is empty".to_string())
     }
-    bubble_sort_vectors(&mut values, &mut keys);
+    sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
     let mut root = match create_tree(&mut values, &mut keys, &mut hashmap) {
         Ok(node) => node, 
@@ -142,7 +142,8 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         .map_err(|_| "Problem creating the file".to_string())?;
 
     while input_file.read(&mut buffer_for_byte)
-            .map_err(|_| "Problem reading the file".to_string())? != 0 {
+            .map_err(|_| "Problem reading the file".to_string())? != 0 &&
+            current_size < output_file_size {
         let byte = buffer_for_byte[0];
         for index in 0..8 {
             let bit = take_bit(byte as u32, 7 - index);

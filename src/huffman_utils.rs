@@ -7,44 +7,24 @@ pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>>{
         let new_node = Node::new(Some(*key), *value);
         nodes.push(new_node);
     }
-    bubble_sort_nodes(&mut nodes);
+    nodes.sort_unstable_by(|a, b| {
+        a.value.cmp(&b.value).then_with(|| a.key.cmp(&b.key))
+    });
     return nodes
 }
 
-fn find_index(nodes: &mut Vec<Node<u8, u32>>, item: &mut Node<u8, u32>) -> usize {
-    let size: usize = nodes.len();
-    let mut min_index = 0;
-    let mut max_index = size;
-    while min_index < max_index {
-        let middle = (max_index + min_index) / 2;
-        if nodes[middle].value < item.value {
-            min_index = middle + 1;
-        }
-        else{
-            max_index = middle;
-        }
-    }
-    min_index 
-}
 
 pub fn take_bit(num: u32, position: u8) -> u8 {
     if (num & (1 << position)) == (1 << position) {1} else {0}
 }
 
 
-pub fn bubble_sort_vectors<T: Ord, U: Ord>(vector_1: &mut Vec<T>, vector_2: &mut Vec<U>) -> () {
-    let n: usize = vector_1.len();
-    for i in 0..n {
-        for j in 0..(n - i - 1) {
-            if vector_1[j] > vector_1[j + 1] {
-                vector_1.swap(j, j + 1);
-                vector_2.swap(j, j + 1);
-            }
-            else if vector_1[j] == vector_1[j + 1] && vector_2[j] > vector_2[j + 1] {
-                vector_1.swap(j, j + 1);
-                vector_2.swap(j, j + 1);
-            }
-        }
+pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
+    let mut pairs: Vec<_> = v1.drain(..).zip(v2.drain(..)).collect();
+    pairs.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    for (a, b) in pairs {
+        v1.push(a);
+        v2.push(b);
     }
 }
 
@@ -65,7 +45,9 @@ pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize
             let mut new_node: Node<u8, u32> = Node::new(None, left.value + right.value);
             new_node.left = Some(Box::new(left));
             new_node.right = Some(Box::new(right));
-            let index = find_index(nodes, &mut new_node);
+            let index = match nodes.binary_search_by_key(&new_node.value, |n| n.value) {
+                Ok(pos) | Err(pos) => pos,
+            };
             nodes.insert(index, new_node);
         }
     }
