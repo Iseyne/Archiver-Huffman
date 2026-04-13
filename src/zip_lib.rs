@@ -5,6 +5,16 @@ use std::fs::File;
 use std::io::{Write, Seek, SeekFrom, Read};
 
 
+fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>>{
+    let mut nodes: Vec<Node<u8, u32>> = Vec::new();
+    for (key, value) in hashmap {
+        let new_node = Node::new(Some(*key), *value);
+        nodes.push(new_node);
+    }
+    bubble_sort_nodes(&mut nodes);
+    return nodes
+}
+
 fn find_index(nodes: &mut Vec<Node<u8, u32>>, item: &mut Node<u8, u32>) -> usize {
     let size: usize = nodes.len();
     let mut min_index = 0;
@@ -21,7 +31,7 @@ fn find_index(nodes: &mut Vec<Node<u8, u32>>, item: &mut Node<u8, u32>) -> usize
     min_index 
 }
 
-fn take_bit(num: u32, position: u8) -> u8 {
+pub fn take_bit(num: u32, position: u8) -> u8 {
     if (num & (1 << position)) == (1 << position) {1} else {0}
 }
 
@@ -99,19 +109,13 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
             None => {hashmap.insert(byte, 1)}
         };
     }
-
-    let mut nodes: Vec<Node<u8, u32>> = Vec::new();
-    for (key, value) in &hashmap {
-        let new_node = Node::new(Some(*key), *value);
-        nodes.push(new_node);
-    }
+    let mut nodes = create_nodes(&hashmap);
     let num_of_elements = nodes.len();
 
     if num_of_elements == 0 {
         return Ok("File is empty, nothing to compress.".to_string());
     }
 
-    bubble_sort_nodes(&mut nodes);
     huffmans_algorithm(&mut nodes, num_of_elements);
 
     let root = Box::new(nodes.remove(0));
@@ -132,9 +136,6 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
      file.write_all(&original_size.to_le_bytes())
         .map_err(|_| "Problem writing original size".to_string())?;
 
-    file.write_all(&[0])
-        .map_err(|_| "Problem writing the file".to_string())?;
-
     for index in 0..=255 {
         match keys.iter().position(|&item| item == index) {
             Some(result) => file.write_all(&[values[result]]).map_err(|_| "Problem writing the file".to_string())?,
@@ -153,8 +154,6 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
             Some(index) => values[index],
             None => return Err("Can't find value by key".to_string())
         };
-        println!("{} {}", byte, value_length);
-
         for index in 0..value_length {
             let bit = take_bit(hashmap[&byte], value_length - (index + 1));
 
@@ -163,7 +162,6 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
 
             buffer_length += 1;
             if buffer_length == 8 {
-                println!("{:08b}", buffer_for_output);
                 file.write_all(&[buffer_for_output]).map_err(|_| "Problem writing the file".to_string())?;
                 buffer_length = 0;
                 buffer_for_output = 0u8;
@@ -173,27 +171,53 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
 
     if buffer_length > 0 {
         buffer_for_output <<= 8 - buffer_length;
-        println!("{:08b}", buffer_for_output);
         file.write_all(&[buffer_for_output]).map_err(|_| "Problem writing the file".to_string())?;
     }
-    else {
-        buffer_length = 8;
-    }
-
-    file.seek(SeekFrom::Start(8)) // 8 байт размера (u64) — если u32, то 4
-        .map_err(|e| format!("Problem seeking file: {}", e))?;
-    file.write_all(&[buffer_length])
-        .map_err(|_| "Problem writing bits_in_last_byte".to_string())?;
-
-    
+    println!("{}", original_size);
 
     Ok("File was zipped correctly.".to_string())
 }
 
 
 pub fn unzip(input_filename: String, output_filename: String) -> Result<String, String> {
-    let _input_file = fs::File::open(input_filename)
+    let mut input_file = fs::File::open(input_filename)
         .map_err(|e| format!("Problem reading the file: {}", e))?;
+
+    let mut buffer_for_size:[u8; 8] = [0u8; 8];
+    input_file.read(&mut buffer_for_size)
+        .map_err(|_| "Problem reading the file".to_string())?;
+    let _output_file_size = u64::from_le_bytes(buffer_for_size);
+    let input_file_size = input_file.metadata()
+        .map_err(|e| format!("Failed to get metadata: {}", e))?
+        .len() as u64;
+
+    if input_file_size < 256 {
+        return Err("Incorrect type of the zipped file".to_string())
+    }
+
+    let mut buffer_for_byte = [0u8; 1];
+    let mut hashmap: HashMap<u8, u32> = HashMap::new();
+    let mut keys: Vec<u8> = Vec::new();
+    let mut values: Vec<u8> = Vec::new();
+    for index in 0..=255 {
+        input_file.read(&mut buffer_for_byte)
+            .map_err(|_| "Problem reading the file".to_string())?;
+
+        if buffer_for_byte[0] != 0 {
+            keys.push(index);
+            values.push(buffer_for_byte[0]);
+            hashmap.insert(index, buffer_for_byte[0] as u32);
+        }
+
+    }
+
+    if keys.len() == 0 {
+        return Err("The unzipped file is empty".to_string())
+    }
+    bubble_sort_vectors(&mut values, &mut keys);
+    canonical_code(&mut values, &mut keys, &mut hashmap);
+    let _root = create_tree(&mut values, &mut keys, &mut hashmap);
+
     
     let _output_file = fs::File::create(output_filename)
         .map_err(|e| format!("Problem reading the file: {}", e))?;
