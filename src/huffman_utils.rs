@@ -85,7 +85,7 @@ pub fn canonical_code(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut Ha
 }
 
 
-pub fn create_tree(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashMap<u8, u32>) -> Box<Node<u8, u32>>{
+pub fn create_tree(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashMap<u8, u32>) -> Result<Box<Node<u8, u32>>, String>{
     let mut root: Box<Node<u8, u32>> = Box::new(Node::new(None, 0));
     for index in 0..values.len() {
         let mut current_node = &mut root;
@@ -93,18 +93,27 @@ pub fn create_tree(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashM
             let bit = take_bit(hashmap[&keys[index]], values[index] - (u + 1));
             if bit == 0 {
                 if current_node.left.is_none() {
-                    current_node.left = Some(Box::new(Node::new(None, 0)));
+                    current_node.left = Some(Box::new(Node::new(None, 1)));
                 }
-                current_node = current_node.left.as_mut().unwrap();
-            } else {
+                current_node = current_node.left
+                    .as_mut()
+                    .ok_or_else(|| "Internal error: left child unexpectedly None"
+                    .to_string())?;
+            } else if bit == 1{
                 if current_node.right.is_none() {
-                    current_node.right = Some(Box::new(Node::new(None, 0)));
+                    current_node.right = Some(Box::new(Node::new(None, 1)));
                 }
-                current_node = current_node.right.as_mut().unwrap();
+                current_node = current_node.right
+                    .as_mut()
+                    .ok_or_else(|| "Internal error: left child unexpectedly None"
+                    .to_string())?;
+            } else {
+                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string())
             }
         }
         current_node.key = Some(keys[index]);
+        current_node.value = values[index] as u32;
     }
 
-    root
+    Ok(root)
 }

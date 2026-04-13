@@ -90,7 +90,6 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
         buffer_for_output <<= 8 - buffer_length;
         file.write_all(&[buffer_for_output]).map_err(|_| "Problem writing the file".to_string())?;
     }
-    println!("{}", original_size);
 
     Ok("File was zipped correctly.".to_string())
 }
@@ -103,7 +102,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     let mut buffer_for_size:[u8; 8] = [0u8; 8];
     input_file.read(&mut buffer_for_size)
         .map_err(|_| "Problem reading the file".to_string())?;
-    let _output_file_size = u64::from_le_bytes(buffer_for_size);
+    let output_file_size = u64::from_le_bytes(buffer_for_size);
     let input_file_size = input_file.metadata()
         .map_err(|e| format!("Failed to get metadata: {}", e))?
         .len() as u64;
@@ -133,11 +132,52 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     }
     bubble_sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
-    let _root = create_tree(&mut values, &mut keys, &mut hashmap);
+    let mut root = match create_tree(&mut values, &mut keys, &mut hashmap) {
+        Ok(node) => node, 
+        Err(e) => return Err(e)
+    };
+    let mut current_size: u64 = 0;
+    let mut current_node = &mut root;
+    let mut file = File::create(&output_filename)
+        .map_err(|_| "Problem creating the file".to_string())?;
 
+    while input_file.read(&mut buffer_for_byte)
+            .map_err(|_| "Problem reading the file".to_string())? != 0 {
+        let byte = buffer_for_byte[0];
+        for index in 0..8 {
+            let bit = take_bit(byte as u32, 7 - index);
+            if bit == 0 {
+                current_node = current_node.left
+                    .as_mut()
+                    .ok_or_else(|| "Left child unexpectedly None"
+                    .to_string())?;
+            } else if bit == 1 {
+                current_node = current_node.right
+                    .as_mut()
+                    .ok_or_else(|| "Right child unexpectedly None"
+                    .to_string())?;
+            } else {
+                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string())
+            }
+
+            match current_node.key {
+                Some(key) => {
+                    file.write_all(&[key])
+                        .map_err(|_| "Problem writing the file".to_string())?;
+                    current_size += 1;
+                    current_node = &mut root;
+                    if current_size >= output_file_size {
+                        break
+                    }
+                },
+                None => {}
+            }
+        }
+    }
+
+    if !(current_node.key.is_none() && current_node.value == 0) {
+        return Err("Incorrect type of the zipped file".to_string())
+    }
     
-    let _output_file = fs::File::create(output_filename)
-        .map_err(|e| format!("Problem reading the file: {}", e))?;
-
     Ok("File was unzipped correctly.".to_string())
 }
