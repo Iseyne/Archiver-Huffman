@@ -1,5 +1,6 @@
 mod zip_lib;
 mod tree_lib;
+mod huffman_utils;
 use std::env;
 
 fn parser(args: Vec<String>) -> Result<String, String> {
