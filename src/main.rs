@@ -1,6 +1,4 @@
-mod zip_lib;
-mod tree_lib;
-mod huffman_utils;
+use Archiver_Huffman::{zip, unzip};
 use std::env;
 use std::path::Path;
 
@@ -49,13 +47,13 @@ fn main() -> Result<(), String> {
 
     
     if args[1] == "zip" {
-        match zip_lib::zip(args[2].clone(), output_filename) {
+        match zip(args[2].clone(), output_filename) {
             Ok(message) => println!("{}", message), 
             Err(e) => return Err(e)
         };
     }
     else if args[1] == "unzip" {
-        match zip_lib::unzip(args[2].clone(), output_filename) {
+        match unzip(args[2].clone(), output_filename) {
             Ok(message) => println!("{}", message), 
             Err(e) => return Err(e)
         };
