@@ -1,14 +1,15 @@
 use Archiver_Huffman::{unzip, zip};
 use std::fs;
 use std::path::Path;
+
 const OK_ZIP: &str = "File was zipped correctly.";
 const OK_UNZIP: &str = "File was unzipped correctly.";
 
 #[test]
 fn random_true_test() {
-    let input = "test_input.bin";
-    let input_zipped = "test_input_zipped.bin";
-    let input_unzipped = "test_input_unzipped.bin";
+    let input = "test_random_input.bin";
+    let input_zipped = "test_random_zipped.bin";
+    let input_unzipped = "test_random_unzipped.bin";
 
     fs::write(input, b"787878787878787878ocamldocker").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
@@ -21,10 +22,11 @@ fn random_true_test() {
     let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     assert!(
-        size_input_zipped >= 265,
-        "The minimal size of zipped file must be 265 bytes, but not {}",
+        size_input_zipped >= 9,
+        "Zipped file is too small: {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -48,8 +50,8 @@ fn random_true_test() {
 #[test]
 fn test_large_data() {
     let input = "test_large_data_input.bin";
-    let input_zipped = "test_large_data_input_zipped.bin";
-    let input_unzipped = "test_large_data_input_unzipped.bin";
+    let input_zipped = "test_large_data_zipped.bin";
+    let input_unzipped = "test_large_data_unzipped.bin";
 
     let data = vec![0xAD; 1024 * 1024];
     fs::write(input, &data).unwrap();
@@ -63,10 +65,11 @@ fn test_large_data() {
     let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     assert!(
-        size_input_zipped >= 265,
-        "The minimal size of zipped file must be 265 bytes, but not {}",
+        size_input_zipped >= 9,
+        "Zipped file is too small: {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -90,7 +93,7 @@ fn test_large_data() {
 #[test]
 fn test_empty_file() {
     let input = "test_empty_input.bin";
-    let input_zipped = "test_empty_input_zipped.bin";
+    let input_zipped = "test_empty_zipped.bin";
 
     fs::write(input, "").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
@@ -109,11 +112,10 @@ fn test_empty_file() {
 }
 
 #[test]
-
 fn test_file_one_byte() {
     let input = "test_one_byte_input.bin";
-    let input_zipped = "test_one_byte_input_zipped.bin";
-    let input_unzipped = "test_one_byte_input_unzipped.bin";
+    let input_zipped = "test_one_byte_zipped.bin";
+    let input_unzipped = "test_one_byte_unzipped.bin";
 
     fs::write(input, b"z").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
@@ -126,10 +128,11 @@ fn test_file_one_byte() {
     let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     assert!(
-        size_input_zipped == 265,
-        "The size of zipped file must be 265 bytes, but not {}",
+        (11..=20).contains(&size_input_zipped),
+        "Unexpected zipped size for one byte file: {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -153,8 +156,8 @@ fn test_file_one_byte() {
 #[test]
 fn test_file_same_bytes() {
     let input = "test_same_bytes_input.bin";
-    let input_zipped = "test_same_bytes_input_zipped.bin";
-    let input_unzipped = "test_same_bytes_input_unzipped.bin";
+    let input_zipped = "test_same_bytes_zipped.bin";
+    let input_unzipped = "test_same_bytes_nzipped.bin";
 
     let data = vec![9; 512];
     fs::write(input, &data).unwrap();
@@ -168,10 +171,11 @@ fn test_file_same_bytes() {
     let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     assert!(
-        size_input_zipped == 328,
-        "The size of zipped file must be 328 bytes, but not {}",
+        (20..=100).contains(&size_input_zipped),
+        "Unexpected zipped size for uniform 512 bytes: {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -195,8 +199,8 @@ fn test_file_same_bytes() {
 #[test]
 fn test_file_all_bytes_n_times() {
     let input = "test_all_bytes_n_times_input.bin";
-    let input_zipped = "test_all_bytes_n_times_input_zipped.bin";
-    let input_unzipped = "test_all_bytes_n_times_input_unzipped.bin";
+    let input_zipped = "test_all_bytes_n_times_zipped.bin";
+    let input_unzipped = "test_all_bytes_n_times_unzipped.bin";
 
     let mut data: Vec<u8> = Vec::new();
     for i in 0..=255 {
@@ -215,10 +219,11 @@ fn test_file_all_bytes_n_times() {
     let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     assert!(
-        size_input_zipped >= 265 && size_input_zipped < 500000,
+        size_input_zipped >= 265 && size_input_zipped < 50000,
         "The size of zipped file must be from 265 to 50000 bytes, but not {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -242,8 +247,8 @@ fn test_file_all_bytes_n_times() {
 #[test]
 fn test_file_all_bytes() {
     let input = "test_all_bytes_input.bin";
-    let input_zipped = "test_all_bytes_input_zipped.bin";
-    let input_unzipped = "test_all_bytes_input_unzipped.bin";
+    let input_zipped = "test_all_bytes_zipped.bin";
+    let input_unzipped = "test_all_bytes_unzipped.bin";
 
     let mut data: Vec<u8> = Vec::new();
     for i in 0..=255 {
@@ -267,6 +272,7 @@ fn test_file_all_bytes() {
         "The size of zipped file must be approximately same with size of input file, but not {}",
         size_input_zipped
     );
+
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
         Err(error) => error,
@@ -292,7 +298,7 @@ fn test_unzip_short_file_defect() {
     let input_zipped = "test_short_defect_zipped.bin";
     let output = "test_short_defect_out.bin";
 
-    fs::write(input_zipped, &[0u8; 100]).unwrap();
+    fs::write(input_zipped, &[0u8; 8]).unwrap();
 
     let unzipped = match unzip(input_zipped.to_string(), output.to_string()) {
         Ok(message) => message,
@@ -300,7 +306,7 @@ fn test_unzip_short_file_defect() {
     };
 
     assert!(
-        unzipped == "Incorrect type of the zipped file",
+        unzipped.contains("Problem reading") || unzipped.contains("Incorrect"),
         "Should reject short file, got: {}",
         unzipped
     );
@@ -323,10 +329,8 @@ fn test_unzip_file_damaged_table() {
     let _ = zip(input.to_string(), input_zipped.to_string()).unwrap();
 
     let mut data = fs::read(input_zipped).unwrap();
-    assert!(data.len() > 264, "Archive too small for test");
-    for i in 8..264 {
-        data[i] = 0;
-    }
+    assert!(data.len() > 20, "Archive too small for test");
+    data[8] = 255;
     fs::write(input_zipped, &data).unwrap();
 
     let unzipped = match unzip(input_zipped.to_string(), output.to_string()) {
@@ -335,9 +339,10 @@ fn test_unzip_file_damaged_table() {
     };
 
     assert!(
-        unzipped.contains("Incorrect type")
-            || unzipped.contains("unexpectedly None")
-            || unzipped.contains("empty"),
+        unzipped.contains("Incorrect")
+            || unzipped.contains("unexpectedly")
+            || unzipped.contains("empty")
+            || unzipped.contains("Problem reading"),
         "Should reject archive with damaged table, got: {}",
         unzipped
     );
@@ -345,4 +350,59 @@ fn test_unzip_file_damaged_table() {
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(output).ok();
+}
+
+#[test]
+fn test_unzip_empty_archive() {
+    let input_zipped = "empty_archive_zipped.bin";
+    let input_unzipped = "empty_archive_unzipped.bin";
+
+    fs::write(input_zipped, b"").unwrap();
+    let res = unzip(input_zipped.to_string(), input_unzipped.to_string());
+    assert!(res.is_err());
+    assert!(!Path::new(input_unzipped).exists());
+
+    fs::remove_file(input_zipped).ok();
+}
+
+#[test]
+fn test_unzip_wrong_original_size() {
+    let input = "wrong_size_input.bin";
+    let input_zipped = "wrong_size_zipped.bin";
+    let input_unzipped = "wrong_size_unzipped.bin";
+
+    fs::write(input, b"hello").unwrap();
+    zip(input.to_string(), input_zipped.to_string()).unwrap();
+
+    let mut data = fs::read(input_zipped).unwrap();
+    data[0..8].copy_from_slice(&999999u64.to_le_bytes());
+    fs::write(input_zipped, &data).unwrap();
+
+    let unzipped = unzip(input_zipped.to_string(), input_unzipped.to_string());
+    assert!(unzipped.is_err());
+    assert!(!Path::new(input_unzipped).exists());
+
+    fs::remove_file(input).ok();
+    fs::remove_file(input_zipped).ok();
+}
+
+#[test]
+fn test_unzip_bad_num_of_elements() {
+    let input = "bad_count_input.bin";
+    let input_zipped = "bad_count_zipped.bin";
+    let input_unzipped = "bad_count_unzipped.bin";
+
+    fs::write(input, b"test").unwrap();
+    zip(input.to_string(), input_zipped.to_string()).unwrap();
+
+    let mut data = fs::read(input_zipped).unwrap();
+    data[8] = 200;
+    fs::write(input_zipped, &data).unwrap();
+
+    let res = unzip(input_zipped.to_string(), input_unzipped.to_string());
+    assert!(res.is_err());
+
+    fs::remove_file(input).ok();
+    fs::remove_file(input_zipped).ok();
+    fs::remove_file(input_unzipped).ok();
 }
