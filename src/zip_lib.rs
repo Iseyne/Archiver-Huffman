@@ -57,14 +57,24 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     file.write_all(&original_size.to_le_bytes())
         .map_err(|_| "Problem writing original size".to_string())?;
 
-    for index in 0..=255 {
-        match keys.iter().position(|&item| item == index) {
-            Some(result) => file
-                .write_all(&[values[result]])
-                .map_err(|_| "Problem writing the file".to_string())?,
-            None => file
-                .write_all(&[0])
-                .map_err(|_| "Problem writing the file".to_string())?,
+    file.write_all(&[(num_of_elements - 1) as u8])
+        .map_err(|_| "Problem writing number of elements".to_string())?;
+
+    if num_of_elements < 128 {
+        for index in 0..keys.len() {
+            file.write_all(&[keys[index], values[index]])
+                .map_err(|_| "Problem writing the file".to_string())?
+        }
+    } else {
+        for index in 0..=255 {
+            match keys.iter().position(|&item| item == index) {
+                Some(result) => file
+                    .write_all(&[values[result]])
+                    .map_err(|_| "Problem writing the file".to_string())?,
+                None => file
+                    .write_all(&[0])
+                    .map_err(|_| "Problem writing the file".to_string())?,
+            }
         }
     }
 
@@ -114,33 +124,49 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
 
     let mut buffer_for_size: [u8; 8] = [0u8; 8];
-    match input_file.read(&mut buffer_for_size) {
+    match input_file.read_exact(&mut buffer_for_size) {
         Ok(_) => {}
         Err(_) => return Err("Problem reading the file".to_string()),
     };
     let output_file_size = u64::from_le_bytes(buffer_for_size);
-    let input_file_size = input_file
-        .metadata()
-        .map_err(|e| format!("Failed to get metadata: {}", e))?
-        .len() as u64;
-
-    if input_file_size < 264 {
-        return Err("Incorrect type of the zipped file".to_string());
-    }
 
     let mut buffer_for_byte = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
     let mut keys: Vec<u8> = Vec::new();
     let mut values: Vec<u8> = Vec::new();
-    for index in 0..=255 {
-        input_file
-            .read(&mut buffer_for_byte)
-            .map_err(|_| "Problem reading the file".to_string())?;
 
-        if buffer_for_byte[0] != 0 {
-            keys.push(index);
-            values.push(buffer_for_byte[0]);
-            hashmap.insert(index, buffer_for_byte[0] as u32);
+    match input_file.read_exact(&mut buffer_for_byte) {
+        Ok(_) => {}
+        Err(_) => return Err("Problem reading the file".to_string()),
+    };
+    let num_of_elements = buffer_for_byte[0];
+
+    if num_of_elements < 127 {
+        for _ in 0..=num_of_elements {
+            input_file
+                .read_exact(&mut buffer_for_byte)
+                .map_err(|_| "Problem reading the file".to_string())?;
+            let key = buffer_for_byte[0];
+
+            input_file
+                .read_exact(&mut buffer_for_byte)
+                .map_err(|_| "Problem reading the file".to_string())?;
+            let value = buffer_for_byte[0];
+            keys.push(key);
+            values.push(value);
+            hashmap.insert(key, value as u32);
+        }
+    } else {
+        for index in 0..=255 {
+            input_file
+                .read_exact(&mut buffer_for_byte)
+                .map_err(|_| "Problem reading the file".to_string())?;
+
+            if buffer_for_byte[0] != 0 {
+                keys.push(index);
+                values.push(buffer_for_byte[0]);
+                hashmap.insert(index, buffer_for_byte[0] as u32);
+            }
         }
     }
 
@@ -159,7 +185,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
 
     loop {
-        let check = match input_file.read(&mut buffer_for_byte) {
+        let check = match input_file.read_exact(&mut buffer_for_byte) {
             Ok(_) => true,
             Err(_) => false,
         };
