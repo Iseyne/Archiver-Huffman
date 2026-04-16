@@ -1,4 +1,4 @@
-use Archiver_Huffman::{unzip, zip};
+use archiver_huffman::{unzip, zip};
 use std::env;
 use std::path::Path;
 
