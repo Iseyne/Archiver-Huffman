@@ -17,11 +17,13 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
 
-    while input_file
-        .read(&mut buffer)
-        .map_err(|_| "Problem reading the file".to_string())?
-        != 0
-    {
+    loop {
+        match input_file
+        .read_exact(&mut buffer) {
+            Ok(_) => {},
+            Err(_) => break
+        };
+    
         let byte = buffer[0];
 
         match hashmap.get(&byte).copied() {
@@ -73,11 +75,12 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer_for_output = 0u8;
     let mut buffer_length = 0;
 
-    while input_file
-        .read(&mut buffer)
-        .map_err(|_| "Problem reading the file".to_string())?
-        != 0
-    {
+    loop {
+        match input_file
+        .read_exact(&mut buffer) {
+            Ok(_) => {},
+            Err(_) => break
+        };
         let byte = buffer[0];
         let value_length = match keys.iter().position(|&key| key == byte) {
             Some(index) => values[index],
@@ -113,9 +116,11 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
 
     let mut buffer_for_size: [u8; 8] = [0u8; 8];
-    input_file
-        .read(&mut buffer_for_size)
-        .map_err(|_| "Problem reading the file".to_string())?;
+    match input_file
+        .read(&mut buffer_for_size) {
+            Ok(_) => {},
+            Err(_) => return Err("Problem reading the file".to_string())
+        };
     let output_file_size = u64::from_le_bytes(buffer_for_size);
     let input_file_size = input_file
         .metadata()
@@ -156,12 +161,16 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     let mut file =
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
 
-    while input_file
-        .read(&mut buffer_for_byte)
-        .map_err(|_| "Problem reading the file".to_string())?
-        != 0
-        && current_size < output_file_size
-    {
+    loop {
+        let check = match input_file
+        .read(&mut buffer_for_byte) {
+            Ok(_) => true,
+            Err(_) => false
+        };
+        if !(check && current_size < output_file_size) {
+            break;
+        }
+
         let byte = buffer_for_byte[0];
         for index in 0..8 {
             let bit = take_bit(byte as u32, 7 - index);

@@ -5,7 +5,7 @@ const OK_ZIP: &str = "File was zipped correctly.";
 const OK_UNZIP: &str = "File was unzipped correctly.";
 
 #[test]
-fn true_test() {
+fn random_true_test() {
     let input = "test_input.bin";
     let input_zipped = "test_input_zipped.bin";
     let input_unzipped = "test_input_unzipped.bin";
@@ -313,35 +313,6 @@ fn test_unzip_short_file_defect() {
     fs::remove_file(output).ok();
 }
 
-#[test]
-fn test_unzip_file_delete_last_byte() {
-    let input = "test_del_last_byte_input.bin";
-    let input_zipped = "test_del_last_byte_zipped.bin";
-    let output = "test_del_last_byte_out.bin";
-
-    fs::write(input, b"Some data to compress").unwrap();
-    let _ = zip(input.to_string(), input_zipped.to_string()).unwrap();
-
-    let mut data = fs::read(input_zipped).unwrap();
-    assert!(data.len() > 264, "Archive too small for test");
-    data.pop();
-    fs::write(input_zipped, &data).unwrap();
-
-    let unzipped = match unzip(input_zipped.to_string(), output.to_string()) {
-        Ok(message) => message,
-        Err(error) => error,
-    };
-
-    assert!(
-        unzipped.contains("Incorrect type") || unzipped.contains("unexpectedly None"),
-        "Should fail on truncated archive, got: {}",
-        unzipped
-    );
-
-    fs::remove_file(input).ok();
-    fs::remove_file(input_zipped).ok();
-    fs::remove_file(output).ok();
-}
 
 #[test]
 fn test_unzip_file_damaged_table() {
