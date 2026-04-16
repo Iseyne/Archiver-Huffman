@@ -42,10 +42,7 @@ fn parser(args: &[String]) -> Result<(&str, &str, String), String> {
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
-    let (command, input, output) = match parser(&args) {
-        Ok(tuple) => tuple,
-        Err(e) => return Err(e),
-    };
+    let (command, input, output) = parser(&args)?;
 
     let result = match command {
         "zip" => zip(input.to_string(), output),
