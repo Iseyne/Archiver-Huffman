@@ -18,7 +18,7 @@ impl<T, U> Node<T, U> {
     }
 }
 
-pub fn dfs(hashmap: &mut HashMap<u8, u32>, node: Box<Node<u8, u32>>, deep: u32) -> () {
+pub fn dfs(hashmap: &mut HashMap<u8, u32>, node: Box<Node<u8, u32>>, deep: u32) {
     let mut flag = 0;
     match node.left {
         Some(next) => dfs(hashmap, next, deep + 1),

@@ -8,7 +8,7 @@ pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>> {
         nodes.push(new_node);
     }
     nodes.sort_unstable_by(|a, b| a.value.cmp(&b.value).then_with(|| a.key.cmp(&b.key)));
-    return nodes;
+    nodes
 }
 
 pub fn take_bit(num: u32, position: u8) -> u8 {
@@ -28,7 +28,7 @@ pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
     }
 }
 
-pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize) -> () {
+pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize) {
     if num_of_elements == 1 {
         let left: Node<u8, u32> = nodes.remove(0);
         let right: Node<u8, u32> = Node::new(None, 0);
@@ -51,11 +51,7 @@ pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize
     }
 }
 
-pub fn canonical_code(
-    values: &mut Vec<u8>,
-    keys: &mut Vec<u8>,
-    hashmap: &mut HashMap<u8, u32>,
-) -> () {
+pub fn canonical_code(values: &[u8], keys: &[u8], hashmap: &mut HashMap<u8, u32>) {
     let mut prev_length = values[0];
     let mut prev_code = 0;
     hashmap.insert(keys[0], 0);
@@ -68,8 +64,8 @@ pub fn canonical_code(
 }
 
 pub fn create_tree(
-    values: &mut Vec<u8>,
-    keys: &mut Vec<u8>,
+    values: &[u8],
+    keys: &[u8],
     hashmap: &mut HashMap<u8, u32>,
 ) -> Result<Box<Node<u8, u32>>, String> {
     let mut root: Box<Node<u8, u32>> = Box::new(Node::new(None, 0));
@@ -92,9 +88,9 @@ pub fn create_tree(
                 current_node = current_node
                     .right
                     .as_mut()
-                    .ok_or_else(|| "Internal error: left child unexpectedly None".to_string())?;
+                    .ok_or_else(|| "Internal error: right child unexpectedly None".to_string())?;
             } else {
-                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string());
+                return Err(format!("Bit must be 0 or 1, but not {}", bit));
             }
         }
         current_node.key = Some(keys[index]);
