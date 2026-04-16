@@ -30,7 +30,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let num_of_elements = nodes.len();
 
     if num_of_elements == 0 {
-        return Ok("File is empty, nothing to compress.".to_string());
+        return Err("File is empty, nothing to compress.".to_string());
     }
 
     huffmans_algorithm(&mut nodes, num_of_elements);
@@ -128,7 +128,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     }
 
     if keys.len() == 0 {
-        return Err("The unzipped file is empty".to_string())
+        return Err("The zipped file have the empty table".to_string())
     }
     sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
