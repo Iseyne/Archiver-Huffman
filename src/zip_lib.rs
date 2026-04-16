@@ -17,7 +17,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
 
-    while let Ok(_) = input_file.read_exact(&mut buffer) {
+    while input_file.read_exact(&mut buffer).is_ok() {
         let byte = buffer[0];
 
         match hashmap.get(&byte).copied() {
@@ -79,7 +79,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer_for_output = 0u8;
     let mut buffer_length = 0;
 
-    while let Ok(_) = input_file.read_exact(&mut buffer) {
+    while input_file.read_exact(&mut buffer).is_ok() {
         let byte = buffer[0];
         let value_length = match keys.iter().position(|&key| key == byte) {
             Some(index) => values[index],
