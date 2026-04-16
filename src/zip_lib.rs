@@ -18,12 +18,11 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
 
     loop {
-        match input_file
-        .read_exact(&mut buffer) {
-            Ok(_) => {},
-            Err(_) => break
+        match input_file.read_exact(&mut buffer) {
+            Ok(_) => {}
+            Err(_) => break,
         };
-    
+
         let byte = buffer[0];
 
         match hashmap.get(&byte).copied() {
@@ -76,10 +75,9 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer_length = 0;
 
     loop {
-        match input_file
-        .read_exact(&mut buffer) {
-            Ok(_) => {},
-            Err(_) => break
+        match input_file.read_exact(&mut buffer) {
+            Ok(_) => {}
+            Err(_) => break,
         };
         let byte = buffer[0];
         let value_length = match keys.iter().position(|&key| key == byte) {
@@ -116,18 +114,17 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
 
     let mut buffer_for_size: [u8; 8] = [0u8; 8];
-    match input_file
-        .read(&mut buffer_for_size) {
-            Ok(_) => {},
-            Err(_) => return Err("Problem reading the file".to_string())
-        };
+    match input_file.read(&mut buffer_for_size) {
+        Ok(_) => {}
+        Err(_) => return Err("Problem reading the file".to_string()),
+    };
     let output_file_size = u64::from_le_bytes(buffer_for_size);
     let input_file_size = input_file
         .metadata()
         .map_err(|e| format!("Failed to get metadata: {}", e))?
         .len() as u64;
 
-    if input_file_size < 256 {
+    if input_file_size < 264 {
         return Err("Incorrect type of the zipped file".to_string());
     }
 
@@ -148,7 +145,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     }
 
     if keys.len() == 0 {
-        return Err("The zipped file have the empty table".to_string());
+        return Err("The zipped file has the empty table".to_string());
     }
     sort_vectors(&mut values, &mut keys);
     canonical_code(&mut values, &mut keys, &mut hashmap);
@@ -162,10 +159,9 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
 
     loop {
-        let check = match input_file
-        .read(&mut buffer_for_byte) {
+        let check = match input_file.read(&mut buffer_for_byte) {
             Ok(_) => true,
-            Err(_) => false
+            Err(_) => false,
         };
         if !(check && current_size < output_file_size) {
             break;
@@ -188,19 +184,21 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
                 return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string());
             }
 
-            match current_node.key {
-                Some(key) => {
-                    file.write_all(&[key])
-                        .map_err(|_| "Problem writing the file".to_string())?;
-                    current_size += 1;
-                    current_node = &mut root;
-                    if current_size >= output_file_size {
-                        break;
-                    }
+            if let Some(key) = current_node.key {
+                file.write_all(&[key])
+                    .map_err(|_| "Problem writing the file".to_string())?;
+                current_size += 1;
+                current_node = &mut root;
+                if current_size >= output_file_size {
+                    break;
                 }
-                None => {}
             }
         }
+    }
+    if current_size != output_file_size {
+        drop(file);
+        let _ = fs::remove_file(&output_filename);
+        return Err("Decompressed size does not match expected size".to_string());
     }
 
     if !(current_node.key.is_none() && current_node.value == 0) {

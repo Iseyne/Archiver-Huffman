@@ -2,11 +2,20 @@ use Archiver_Huffman::{unzip, zip};
 use std::env;
 use std::path::Path;
 
-fn parser(args: Vec<String>) -> Result<String, String> {
-    let output_filename: String;
+fn parser(args: &[String]) -> Result<(&str, &str, String), String> {
+    if args.len() < 3 || args.len() > 4 {
+        return Err("Usage: program <zip|unzip> <input> [output]".to_string());
+    }
 
-    if args.len() == 3 {
-        let input_path = &args[2];
+    let command = &args[1];
+    if command != "zip" && command != "unzip" {
+        return Err("First argument should be \"zip\" or \"unzip\".".to_string());
+    }
+
+    let input_path = &args[2];
+    let output_filename = if args.len() == 4 {
+        args[3].clone()
+    } else {
         let path = Path::new(input_path);
 
         let stem = path
@@ -20,41 +29,34 @@ fn parser(args: Vec<String>) -> Result<String, String> {
             .map(|e| format!(".{}", e))
             .unwrap_or_default();
 
-        let name = match args[1].as_str() {
-            "zip" => "_zipped",
-            "unzip" => "_unzipped",
-            _ => return Err("First argument should be \"zip\" or \"unzip\".".to_string()),
+        let suffix = if command == "zip" {
+            "_zipped"
+        } else {
+            "_unzipped"
         };
+        format!("{}{}{}", stem, suffix, ext)
+    };
 
-        output_filename = format!("{}{}{}", stem, name, ext);
-    } else if args.len() == 4 {
-        output_filename = args[3].clone();
-    } else {
-        return Err("Incorrect number of arguments.".to_string());
-    }
-
-    Ok(output_filename)
+    Ok((command.as_str(), input_path.as_str(), output_filename))
 }
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
-    let output_filename = match parser(args.clone()) {
-        Ok(path) => path,
+    let (command, input, output) = match parser(&args) {
+        Ok(tuple) => tuple,
         Err(e) => return Err(e),
     };
 
-    if args[1] == "zip" {
-        match zip(args[2].clone(), output_filename) {
-            Ok(message) => println!("{}", message),
-            Err(e) => return Err(e),
-        };
-    } else if args[1] == "unzip" {
-        match unzip(args[2].clone(), output_filename) {
-            Ok(message) => println!("{}", message),
-            Err(e) => return Err(e),
-        };
-    } else {
-        return Err("First argument should be \"zip\" or \"unzip\".".to_string());
+    let result = match command {
+        "zip" => zip(input.to_string(), output),
+        "unzip" => unzip(input.to_string(), output),
+        _ => unreachable!(),
+    };
+
+    match result {
+        Ok(message) => println!("{}", message),
+        Err(e) => return Err(e),
     }
+
     Ok(())
 }

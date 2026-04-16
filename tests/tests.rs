@@ -313,7 +313,6 @@ fn test_unzip_short_file_defect() {
     fs::remove_file(output).ok();
 }
 
-
 #[test]
 fn test_unzip_file_damaged_table() {
     let input = "test_damaged_table_input.bin";
