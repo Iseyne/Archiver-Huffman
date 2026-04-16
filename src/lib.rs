@@ -1,5 +1,5 @@
+mod huffman_utils;
 mod tree_lib;
 mod zip_lib;
-mod huffman_utils;
 
-pub use zip_lib::{zip, unzip};
+pub use zip_lib::{unzip, zip};

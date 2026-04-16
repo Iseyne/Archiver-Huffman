@@ -1,6 +1,6 @@
+use Archiver_Huffman::{unzip, zip};
 use std::fs;
 use std::path::Path;
-use Archiver_Huffman::{zip, unzip};
 const OK_ZIP: &str = "File was zipped correctly.";
 const OK_UNZIP: &str = "File was unzipped correctly.";
 
@@ -13,19 +13,21 @@ fn true_test() {
     fs::write(input, b"787878787878787878ocamldocker").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped >= 265, "The minimal size of zipped file must be 265 bytes, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped >= 265,
+        "The minimal size of zipped file must be 265 bytes, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -33,12 +35,14 @@ fn true_test() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
-
 }
 
 #[test]
@@ -47,23 +51,25 @@ fn test_large_data() {
     let input_zipped = "test_large_data_input_zipped.bin";
     let input_unzipped = "test_large_data_input_unzipped.bin";
 
-    let data = vec![0xAD; 1024*1024];
+    let data = vec![0xAD; 1024 * 1024];
     fs::write(input, &data).unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped >= 265, "The minimal size of zipped file must be 265 bytes, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped >= 265,
+        "The minimal size of zipped file must be 265 bytes, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -71,14 +77,15 @@ fn test_large_data() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
-
 }
-
 
 #[test]
 fn test_empty_file() {
@@ -88,16 +95,18 @@ fn test_empty_file() {
     fs::write(input, "").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
-    assert_eq!("File is empty, nothing to compress.", zipped, "File must not be zipped");
+
+    assert_eq!(
+        "File is empty, nothing to compress.", zipped,
+        "File must not be zipped"
+    );
     assert!(!Path::new(input_zipped).exists());
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
 }
-
 
 #[test]
 
@@ -109,19 +118,21 @@ fn test_file_one_byte() {
     fs::write(input, b"z").unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped == 265, "The size of zipped file must be 265 bytes, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped == 265,
+        "The size of zipped file must be 265 bytes, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -129,13 +140,15 @@ fn test_file_one_byte() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
 }
-
 
 #[test]
 fn test_file_same_bytes() {
@@ -147,19 +160,21 @@ fn test_file_same_bytes() {
     fs::write(input, &data).unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped == 328, "The size of zipped file must be 328 bytes, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped == 328,
+        "The size of zipped file must be 328 bytes, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -167,13 +182,15 @@ fn test_file_same_bytes() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
 }
-
 
 #[test]
 fn test_file_all_bytes_n_times() {
@@ -190,19 +207,21 @@ fn test_file_all_bytes_n_times() {
     fs::write(input, &data).unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped >= 265 && size_input_zipped < 500000, "The size of zipped file must be from 265 to 50000 bytes, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped >= 265 && size_input_zipped < 500000,
+        "The size of zipped file must be from 265 to 50000 bytes, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -210,13 +229,15 @@ fn test_file_all_bytes_n_times() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
 }
-
 
 #[test]
 fn test_file_all_bytes() {
@@ -231,24 +252,24 @@ fn test_file_all_bytes() {
     fs::write(input, &data).unwrap();
     let zipped = match zip(input.to_string(), input_zipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
-    
+
     assert_eq!(OK_ZIP, zipped, "File must be zipped");
     let input_zipped_file = fs::File::open(input_zipped).unwrap();
-    let size_input_zipped = input_zipped_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input_zipped = input_zipped_file.metadata().unwrap().len() as u64;
 
     let input_file = fs::File::open(input).unwrap();
-    let size_input = input_file.metadata()
-        .unwrap()
-        .len() as u64;
+    let size_input = input_file.metadata().unwrap().len() as u64;
 
-    assert!(size_input_zipped <= size_input + 300, "The size of zipped file must be approximately same with size of input file, but not {}", size_input_zipped);
+    assert!(
+        size_input_zipped <= size_input + 300,
+        "The size of zipped file must be approximately same with size of input file, but not {}",
+        size_input_zipped
+    );
     let unzipped = match unzip(input_zipped.to_string(), input_unzipped.to_string()) {
         Ok(message) => message,
-        Err(error) => error
+        Err(error) => error,
     };
 
     assert_eq!(OK_UNZIP, unzipped, "File must be unzipped");
@@ -256,13 +277,15 @@ fn test_file_all_bytes() {
     let from_input = fs::read(input).unwrap();
     let from_unzipped = fs::read(input_unzipped).unwrap();
 
-    assert_eq!(from_input, from_unzipped, "Unzipped file should contain the same data with input file");
+    assert_eq!(
+        from_input, from_unzipped,
+        "Unzipped file should contain the same data with input file"
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();
     fs::remove_file(input_unzipped).ok();
 }
-
 
 #[test]
 fn test_unzip_short_file_defect() {
@@ -276,11 +299,15 @@ fn test_unzip_short_file_defect() {
         Err(error) => error,
     };
 
-    assert!(unzipped == "Incorrect type of the zipped file",
+    assert!(
+        unzipped == "Incorrect type of the zipped file",
         "Should reject short file, got: {}",
         unzipped
     );
-    assert!(!Path::new(output).exists(), "Output file should not be created");
+    assert!(
+        !Path::new(output).exists(),
+        "Output file should not be created"
+    );
 
     fs::remove_file(input_zipped).ok();
     fs::remove_file(output).ok();
@@ -305,7 +332,11 @@ fn test_unzip_file_delete_last_byte() {
         Err(error) => error,
     };
 
-    assert!(unzipped.contains("Incorrect type") || unzipped.contains("unexpectedly None"), "Should fail on truncated archive, got: {}",unzipped);
+    assert!(
+        unzipped.contains("Incorrect type") || unzipped.contains("unexpectedly None"),
+        "Should fail on truncated archive, got: {}",
+        unzipped
+    );
 
     fs::remove_file(input).ok();
     fs::remove_file(input_zipped).ok();

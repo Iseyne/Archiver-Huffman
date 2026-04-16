@@ -1,23 +1,23 @@
 use crate::tree_lib::*;
 use std::collections::HashMap;
 
-pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>>{
+pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>> {
     let mut nodes: Vec<Node<u8, u32>> = Vec::new();
     for (key, value) in hashmap {
         let new_node = Node::new(Some(*key), *value);
         nodes.push(new_node);
     }
-    nodes.sort_unstable_by(|a, b| {
-        a.value.cmp(&b.value).then_with(|| a.key.cmp(&b.key))
-    });
-    return nodes
+    nodes.sort_unstable_by(|a, b| a.value.cmp(&b.value).then_with(|| a.key.cmp(&b.key)));
+    return nodes;
 }
-
 
 pub fn take_bit(num: u32, position: u8) -> u8 {
-    if (num & (1 << position)) == (1 << position) {1} else {0}
+    if (num & (1 << position)) == (1 << position) {
+        1
+    } else {
+        0
+    }
 }
-
 
 pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
     let mut pairs: Vec<_> = v1.drain(..).zip(v2.drain(..)).collect();
@@ -28,7 +28,6 @@ pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
     }
 }
 
-
 pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize) -> () {
     if num_of_elements == 1 {
         let left: Node<u8, u32> = nodes.remove(0);
@@ -37,8 +36,7 @@ pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize
         new_node.left = Some(Box::new(left));
         new_node.right = Some(Box::new(right));
         nodes.insert(0, new_node);
-    }
-    else {
+    } else {
         for _ in 0..(num_of_elements - 1) {
             let left: Node<u8, u32> = nodes.remove(0);
             let right: Node<u8, u32> = nodes.remove(0);
@@ -53,8 +51,11 @@ pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize
     }
 }
 
-
-pub fn canonical_code(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashMap<u8, u32>) -> () {
+pub fn canonical_code(
+    values: &mut Vec<u8>,
+    keys: &mut Vec<u8>,
+    hashmap: &mut HashMap<u8, u32>,
+) -> () {
     let mut prev_length = values[0];
     let mut prev_code = 0;
     hashmap.insert(keys[0], 0);
@@ -66,8 +67,11 @@ pub fn canonical_code(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut Ha
     }
 }
 
-
-pub fn create_tree(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashMap<u8, u32>) -> Result<Box<Node<u8, u32>>, String>{
+pub fn create_tree(
+    values: &mut Vec<u8>,
+    keys: &mut Vec<u8>,
+    hashmap: &mut HashMap<u8, u32>,
+) -> Result<Box<Node<u8, u32>>, String> {
     let mut root: Box<Node<u8, u32>> = Box::new(Node::new(None, 0));
     for index in 0..values.len() {
         let mut current_node = &mut root;
@@ -77,20 +81,20 @@ pub fn create_tree(values: &mut Vec<u8>, keys: &mut Vec<u8>, hashmap: &mut HashM
                 if current_node.left.is_none() {
                     current_node.left = Some(Box::new(Node::new(None, 1)));
                 }
-                current_node = current_node.left
+                current_node = current_node
+                    .left
                     .as_mut()
-                    .ok_or_else(|| "Internal error: left child unexpectedly None"
-                    .to_string())?;
-            } else if bit == 1{
+                    .ok_or_else(|| "Internal error: left child unexpectedly None".to_string())?;
+            } else if bit == 1 {
                 if current_node.right.is_none() {
                     current_node.right = Some(Box::new(Node::new(None, 1)));
                 }
-                current_node = current_node.right
+                current_node = current_node
+                    .right
                     .as_mut()
-                    .ok_or_else(|| "Internal error: left child unexpectedly None"
-                    .to_string())?;
+                    .ok_or_else(|| "Internal error: left child unexpectedly None".to_string())?;
             } else {
-                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string())
+                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string());
             }
         }
         current_node.key = Some(keys[index]);
