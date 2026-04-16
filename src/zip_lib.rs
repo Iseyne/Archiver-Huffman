@@ -12,17 +12,12 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let original_size = input_file
         .metadata()
         .map_err(|e| format!("Failed to get metadata: {}", e))?
-        .len() as u64;
+        .len();
 
     let mut buffer = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
 
-    loop {
-        match input_file.read_exact(&mut buffer) {
-            Ok(_) => {}
-            Err(_) => break,
-        };
-
+    while let Ok(_) = input_file.read_exact(&mut buffer) {
         let byte = buffer[0];
 
         match hashmap.get(&byte).copied() {
@@ -40,7 +35,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     huffmans_algorithm(&mut nodes, num_of_elements);
 
     let root = Box::new(nodes.remove(0));
-    dfs(&mut hashmap, root, 0);
+    dfs(&mut hashmap, &root, 0);
     let mut keys: Vec<u8> = Vec::new();
     let mut values: Vec<u8> = Vec::new();
     for (key, value) in &hashmap {
@@ -49,7 +44,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     }
 
     sort_vectors(&mut values, &mut keys);
-    canonical_code(&mut values, &mut keys, &mut hashmap);
+    canonical_code(&values, &keys, &mut hashmap);
 
     let mut file =
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
@@ -84,11 +79,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer_for_output = 0u8;
     let mut buffer_length = 0;
 
-    loop {
-        match input_file.read_exact(&mut buffer) {
-            Ok(_) => {}
-            Err(_) => break,
-        };
+    while let Ok(_) = input_file.read_exact(&mut buffer) {
         let byte = buffer[0];
         let value_length = match keys.iter().position(|&key| key == byte) {
             Some(index) => values[index],
@@ -170,25 +161,19 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
         }
     }
 
-    if keys.len() == 0 {
+    if keys.is_empty() {
         return Err("The zipped file has the empty table".to_string());
     }
     sort_vectors(&mut values, &mut keys);
-    canonical_code(&mut values, &mut keys, &mut hashmap);
-    let mut root = match create_tree(&mut values, &mut keys, &mut hashmap) {
-        Ok(node) => node,
-        Err(e) => return Err(e),
-    };
+    canonical_code(&values, &keys, &mut hashmap);
+    let mut root = create_tree(&values, &keys, &mut hashmap)?;
     let mut current_size: u64 = 0;
     let mut current_node = &mut root;
     let mut file =
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
 
     loop {
-        let check = match input_file.read_exact(&mut buffer_for_byte) {
-            Ok(_) => true,
-            Err(_) => false,
-        };
+        let check = input_file.read_exact(&mut buffer_for_byte).is_ok();
         if !(check && current_size < output_file_size) {
             break;
         }

@@ -18,21 +18,21 @@ impl<T, U> Node<T, U> {
     }
 }
 
-pub fn dfs(hashmap: &mut HashMap<u8, u32>, node: Box<Node<u8, u32>>, deep: u32) {
+pub fn dfs(hashmap: &mut HashMap<u8, u32>, node: &Node<u8, u32>, deep: u32) {
     let mut flag = 0;
-    match node.left {
-        Some(next) => dfs(hashmap, next, deep + 1),
-        None => flag += 1,
+    if let Some(left) = &node.left {
+        dfs(hashmap, left, deep + 1);
+    } else {
+        flag += 1;
     }
-
-    match node.right {
-        Some(next) => dfs(hashmap, next, deep + 1),
-        None => flag += 1,
+    if let Some(right) = &node.right {
+        dfs(hashmap, right, deep + 1);
+    } else {
+        flag += 1;
     }
-
-    if flag == 2 {
-        if let Some(key) = node.key {
-            hashmap.insert(key, deep);
-        }
+    if flag == 2
+        && let Some(key) = node.key
+    {
+        hashmap.insert(key, deep);
     }
 }
