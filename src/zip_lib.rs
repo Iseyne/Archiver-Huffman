@@ -5,11 +5,8 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 
-pub fn zip(input_filename: String, output_filename: String) -> Result<String, String> {
-    let mut input_file =
-        fs::File::open(&input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
-
-    let original_size = input_file
+fn count_frequencies(file: &mut File) -> Result<(HashMap<u8, u32>, u64), String> {
+    let original_size = file
         .metadata()
         .map_err(|e| format!("Failed to get metadata: {}", e))?
         .len();
@@ -17,15 +14,19 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     let mut buffer = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
 
-    while input_file.read_exact(&mut buffer).is_ok() {
+    while file.read_exact(&mut buffer).is_ok() {
         let byte = buffer[0];
-
         match hashmap.get(&byte).copied() {
-            Some(result) => hashmap.insert(byte, result + 1),
+            Some(count) => hashmap.insert(byte, count + 1),
             None => hashmap.insert(byte, 1),
         };
     }
-    let mut nodes = create_nodes(&hashmap);
+
+    Ok((hashmap, original_size))
+}
+
+fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<(Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
+    let mut nodes = create_nodes(frequencies);
     let num_of_elements = nodes.len();
 
     if num_of_elements == 0 {
@@ -35,128 +36,144 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     huffmans_algorithm(&mut nodes, num_of_elements);
 
     let root = Box::new(nodes.remove(0));
-    dfs(&mut hashmap, &root, 0);
+    let mut code_map = frequencies.clone();
+    dfs(&mut code_map, &root, 0);
+
     let mut keys: Vec<u8> = Vec::new();
     let mut values: Vec<u8> = Vec::new();
-    for (key, value) in &hashmap {
+    for (key, value) in &code_map {
         keys.push(*key);
         values.push(*value as u8);
     }
 
     sort_vectors(&mut values, &mut keys);
-    canonical_code(&values, &keys, &mut hashmap);
+    canonical_code(&values, &keys, &mut code_map);
 
-    let mut file =
-        File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
+    Ok((keys, values, code_map))
+}
 
+fn write_archive_header(file: &mut File, original_size: u64, keys: &[u8], values: &[u8]) -> Result<(), String> {
     file.write_all(&original_size.to_le_bytes())
         .map_err(|_| "Problem writing original size".to_string())?;
 
-    file.write_all(&[(num_of_elements - 1) as u8])
+    file.write_all(&[(keys.len() - 1) as u8])
         .map_err(|_| "Problem writing number of elements".to_string())?;
 
-    if num_of_elements < 128 {
-        for index in 0..keys.len() {
-            file.write_all(&[keys[index], values[index]])
+    if keys.len() < 128 {
+        for i in 0..keys.len() {
+            file.write_all(&[keys[i], values[i]])
                 .map_err(|_| "Problem writing the file".to_string())?
         }
     } else {
-        for index in 0..=255 {
-            match keys.iter().position(|&item| item == index) {
-                Some(result) => file
-                    .write_all(&[values[result]])
-                    .map_err(|_| "Problem writing the file".to_string())?,
-                None => file
-                    .write_all(&[0])
-                    .map_err(|_| "Problem writing the file".to_string())?,
+        for byte in 0..=255u8 {
+            match keys.iter().position(|&k| k == byte) {
+                Some(idx) => file.write_all(&[values[idx]]),
+                None => file.write_all(&[0]),
             }
+            .map_err(|_| "Problem writing the file".to_string())?;
         }
     }
 
-    input_file
+    Ok(())
+}
+
+fn write_compressed_data(input: &mut File, output: &mut File, keys: &[u8], values: &[u8], codes: &HashMap<u8, u32>) -> Result<(), String> {
+    input
         .seek(SeekFrom::Start(0))
         .map_err(|e| format!("Problem seeking file: {}", e))?;
-    let mut buffer_for_output = 0u8;
-    let mut buffer_length = 0;
 
-    while input_file.read_exact(&mut buffer).is_ok() {
+    let mut buffer = [0u8; 1];
+    let mut out_byte = 0u8;
+    let mut bit_count = 0;
+
+    while input.read_exact(&mut buffer).is_ok() {
         let byte = buffer[0];
-        let value_length = match keys.iter().position(|&key| key == byte) {
-            Some(index) => values[index],
+        let code_len = match keys.iter().position(|&k| k == byte) {
+            Some(i) => values[i],
             None => return Err("Can't find value by key".to_string()),
         };
-        for index in 0..value_length {
-            let bit = take_bit(hashmap[&byte], value_length - (index + 1));
+        let code = codes[&byte];
 
-            buffer_for_output <<= 1;
-            buffer_for_output += bit;
+        for i in 0..code_len {
+            let bit = take_bit(code, code_len - (i + 1));
+            out_byte <<= 1;
+            out_byte += bit;
+            bit_count += 1;
 
-            buffer_length += 1;
-            if buffer_length == 8 {
-                file.write_all(&[buffer_for_output])
+            if bit_count == 8 {
+                output
+                    .write_all(&[out_byte])
                     .map_err(|_| "Problem writing the file".to_string())?;
-                buffer_length = 0;
-                buffer_for_output = 0u8;
+                out_byte = 0;
+                bit_count = 0;
             }
         }
     }
 
-    if buffer_length > 0 {
-        buffer_for_output <<= 8 - buffer_length;
-        file.write_all(&[buffer_for_output])
+    if bit_count > 0 {
+        out_byte <<= 8 - bit_count;
+        output
+            .write_all(&[out_byte])
             .map_err(|_| "Problem writing the file".to_string())?;
     }
+
+    Ok(())
+}
+
+pub fn zip(input_filename: String, output_filename: String) -> Result<String, String> {
+    let mut input_file =
+        fs::File::open(&input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
+
+    let (frequencies, original_size) = count_frequencies(&mut input_file)?;
+    let (keys, values, codes) = build_canonical_codes(&frequencies)?;
+
+    let mut output_file =
+        File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
+
+    write_archive_header(&mut output_file, original_size, &keys, &values)?;
+    write_compressed_data(&mut input_file, &mut output_file, &keys, &values, &codes)?;
 
     Ok("File was zipped correctly.".to_string())
 }
 
-pub fn unzip(input_filename: String, output_filename: String) -> Result<String, String> {
-    let mut input_file =
-        fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
+fn read_archive_header(file: &mut File) -> Result<(u64, Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
+    let mut size_buf = [0u8; 8];
+    file.read_exact(&mut size_buf)
+        .map_err(|_| "Problem reading the file".to_string())?;
+    let output_file_size = u64::from_le_bytes(size_buf);
 
-    let mut buffer_for_size: [u8; 8] = [0u8; 8];
-    match input_file.read_exact(&mut buffer_for_size) {
-        Ok(_) => {}
-        Err(_) => return Err("Problem reading the file".to_string()),
-    };
-    let output_file_size = u64::from_le_bytes(buffer_for_size);
+    let mut byte_buf = [0u8; 1];
+    file.read_exact(&mut byte_buf)
+        .map_err(|_| "Problem reading the file".to_string())?;
+    let stored_count = byte_buf[0];
 
-    let mut buffer_for_byte = [0u8; 1];
     let mut hashmap: HashMap<u8, u32> = HashMap::new();
     let mut keys: Vec<u8> = Vec::new();
     let mut values: Vec<u8> = Vec::new();
 
-    match input_file.read_exact(&mut buffer_for_byte) {
-        Ok(_) => {}
-        Err(_) => return Err("Problem reading the file".to_string()),
-    };
-    let num_of_elements = buffer_for_byte[0];
-
-    if num_of_elements < 127 {
-        for _ in 0..=num_of_elements {
-            input_file
-                .read_exact(&mut buffer_for_byte)
+    if stored_count < 127 {
+        for _ in 0..=stored_count {
+            file.read_exact(&mut byte_buf)
                 .map_err(|_| "Problem reading the file".to_string())?;
-            let key = buffer_for_byte[0];
+            let key = byte_buf[0];
 
-            input_file
-                .read_exact(&mut buffer_for_byte)
+            file.read_exact(&mut byte_buf)
                 .map_err(|_| "Problem reading the file".to_string())?;
-            let value = buffer_for_byte[0];
+            let value = byte_buf[0];
+
             keys.push(key);
             values.push(value);
             hashmap.insert(key, value as u32);
         }
     } else {
         for index in 0..=255 {
-            input_file
-                .read_exact(&mut buffer_for_byte)
+            file.read_exact(&mut byte_buf)
                 .map_err(|_| "Problem reading the file".to_string())?;
 
-            if buffer_for_byte[0] != 0 {
+            if byte_buf[0] != 0 {
                 keys.push(index);
-                values.push(buffer_for_byte[0]);
-                hashmap.insert(index, buffer_for_byte[0] as u32);
+                values.push(byte_buf[0]);
+                hashmap.insert(index, byte_buf[0] as u32);
             }
         }
     }
@@ -164,36 +181,47 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
     if keys.is_empty() {
         return Err("The zipped file has the empty table".to_string());
     }
+
+    Ok((output_file_size, keys, values, hashmap))
+}
+
+pub fn unzip(input_filename: String, output_filename: String) -> Result<String, String> {
+    let mut input_file =
+        fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
+
+    let (output_file_size, mut keys, mut values, mut hashmap) =
+        read_archive_header(&mut input_file)?;
+
     sort_vectors(&mut values, &mut keys);
     canonical_code(&values, &keys, &mut hashmap);
     let mut root = create_tree(&values, &keys, &mut hashmap)?;
+
     let mut current_size: u64 = 0;
     let mut current_node = &mut root;
     let mut file =
         File::create(&output_filename).map_err(|_| "Problem creating the file".to_string())?;
 
+    let mut byte_buf = [0u8; 1];
     loop {
-        let check = input_file.read_exact(&mut buffer_for_byte).is_ok();
+        let check = input_file.read_exact(&mut byte_buf).is_ok();
         if !(check && current_size < output_file_size) {
             break;
         }
 
-        let byte = buffer_for_byte[0];
-        for index in 0..8 {
-            let bit = take_bit(byte as u32, 7 - index);
-            if bit == 0 {
-                current_node = current_node
+        let byte = byte_buf[0];
+        for i in 0..8 {
+            let bit = take_bit(byte as u32, 7 - i);
+            current_node = if bit == 0 {
+                current_node
                     .left
                     .as_mut()
-                    .ok_or_else(|| "Left child unexpectedly None".to_string())?;
-            } else if bit == 1 {
-                current_node = current_node
+                    .ok_or_else(|| "Left child unexpectedly None".to_string())?
+            } else {
+                current_node
                     .right
                     .as_mut()
-                    .ok_or_else(|| "Right child unexpectedly None".to_string())?;
-            } else {
-                return Err(format!("Bit must be 0 or 1, but not {}", bit).to_string());
-            }
+                    .ok_or_else(|| "Right child unexpectedly None".to_string())?
+            };
 
             if let Some(key) = current_node.key {
                 file.write_all(&[key])
@@ -206,6 +234,7 @@ pub fn unzip(input_filename: String, output_filename: String) -> Result<String, 
             }
         }
     }
+
     if current_size != output_file_size {
         drop(file);
         let _ = fs::remove_file(&output_filename);
