@@ -5,6 +5,9 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 
+type CodeTable = (Vec<u8>, Vec<u8>, HashMap<u8, u32>);
+type HeaderData = (u64, Vec<u8>, Vec<u8>, HashMap<u8, u32>);
+
 // First pass: read file and count occurrences of each byte.
 fn count_frequencies(file: &mut File) -> Result<(HashMap<u8, u32>, u64), String> {
     let original_size = file
@@ -27,7 +30,7 @@ fn count_frequencies(file: &mut File) -> Result<(HashMap<u8, u32>, u64), String>
 }
 
 // Build Huffman tree from frequencies, compute code lengths and canonical codes.
-fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<(Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
+fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<CodeTable, String> {
     let mut nodes = create_nodes(frequencies);
     let num_of_elements = nodes.len();
 
@@ -55,7 +58,12 @@ fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<(Vec<u8>, Vec
 }
 
 // Write archive header: original size, symbol count, code-length table.
-fn write_archive_header(file: &mut File, original_size: u64, keys: &[u8], values: &[u8]) -> Result<(), String> {
+fn write_archive_header(
+    file: &mut File,
+    original_size: u64,
+    keys: &[u8],
+    values: &[u8],
+) -> Result<(), String> {
     file.write_all(&original_size.to_le_bytes())
         .map_err(|_| "Problem writing original size".to_string())?;
 
@@ -81,7 +89,13 @@ fn write_archive_header(file: &mut File, original_size: u64, keys: &[u8], values
 }
 
 // Second pass: read input again, write Huffman-coded bits into output.
-fn write_compressed_data(input: &mut File, output: &mut File, keys: &[u8], values: &[u8], codes: &HashMap<u8, u32>) -> Result<(), String> {
+fn write_compressed_data(
+    input: &mut File,
+    output: &mut File,
+    keys: &[u8],
+    values: &[u8],
+    codes: &HashMap<u8, u32>,
+) -> Result<(), String> {
     input
         .seek(SeekFrom::Start(0))
         .map_err(|e| format!("Problem seeking file: {}", e))?;
@@ -142,7 +156,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
 }
 
 // Read and parse archive header: size, symbol count, code-length table.
-fn read_archive_header(file: &mut File) -> Result<(u64, Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
+fn read_archive_header(file: &mut File) -> Result<HeaderData, String> {
     let mut size_buf = [0u8; 8];
     file.read_exact(&mut size_buf)
         .map_err(|_| "Problem reading the file".to_string())?;
