@@ -1,6 +1,7 @@
 use crate::tree_lib::*;
 use std::collections::HashMap;
 
+// Create leaf nodes from frequency map, sorted by frequency then by byte value.
 pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>> {
     let mut nodes: Vec<Node<u8, u32>> = Vec::new();
     for (key, value) in hashmap {
@@ -11,6 +12,7 @@ pub fn create_nodes(hashmap: &HashMap<u8, u32>) -> Vec<Node<u8, u32>> {
     nodes
 }
 
+// Extract a single bit from a number at the given position.
 pub fn take_bit(num: u32, position: u8) -> u8 {
     if (num & (1 << position)) == (1 << position) {
         1
@@ -19,6 +21,7 @@ pub fn take_bit(num: u32, position: u8) -> u8 {
     }
 }
 
+// Sort two vectors in tandem by the first vector's values, then by the second's.
 pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
     let mut pairs: Vec<_> = v1.drain(..).zip(v2.drain(..)).collect();
     pairs.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
@@ -28,6 +31,7 @@ pub fn sort_vectors<T: Ord, U: Ord>(v1: &mut Vec<T>, v2: &mut Vec<U>) {
     }
 }
 
+// Greedy Huffman algorithm: repeatedly merge two nodes with the smallest frequencies.
 pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize) {
     if num_of_elements == 1 {
         let left: Node<u8, u32> = nodes.remove(0);
@@ -51,6 +55,8 @@ pub fn huffmans_algorithm(nodes: &mut Vec<Node<u8, u32>>, num_of_elements: usize
     }
 }
 
+// Build canonical Huffman codes from sorted code lengths.
+// The first code is 0; each subsequent code is (prev_code + 1) << (len_diff).
 pub fn canonical_code(values: &[u8], keys: &[u8], hashmap: &mut HashMap<u8, u32>) {
     let mut prev_length = values[0];
     let mut prev_code = 0;
@@ -63,6 +69,8 @@ pub fn canonical_code(values: &[u8], keys: &[u8], hashmap: &mut HashMap<u8, u32>
     }
 }
 
+// Reconstruct the Huffman tree from canonical codes.
+// Walks each code bit-by-bit, creating internal nodes as needed.
 pub fn create_tree(
     values: &[u8],
     keys: &[u8],

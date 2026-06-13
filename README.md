@@ -4,6 +4,12 @@
 > Compresses and decompresses binary files using byte-level Huffman coding.  
 > Supports compact headers for small alphabets and stores original file size for exact restoration.
 
+## Requirements
+
+- **Rust** 1.85+ (stable toolchain; edition 2024)
+- **Cargo** (comes with Rust)
+- No external dependencies required
+
 ## Table of Contents
 - [Installation](#installation)
 - [Archive Format](#archive-format)
