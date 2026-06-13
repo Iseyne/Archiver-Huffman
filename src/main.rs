@@ -2,6 +2,8 @@ use archiver_huffman::{unzip, zip};
 use std::env;
 use std::path::Path;
 
+// Parse CLI arguments: <zip|unzip> <input> [output].
+// If output is omitted, generate "<input>_zipped" or "<input>_unzipped".
 fn parser(args: &[String]) -> Result<(&str, &str, String), String> {
     if args.len() < 3 || args.len() > 4 {
         return Err("Usage: program <zip|unzip> <input> [output]".to_string());

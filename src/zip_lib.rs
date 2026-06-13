@@ -5,6 +5,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 
+// First pass: read file and count occurrences of each byte.
 fn count_frequencies(file: &mut File) -> Result<(HashMap<u8, u32>, u64), String> {
     let original_size = file
         .metadata()
@@ -25,6 +26,7 @@ fn count_frequencies(file: &mut File) -> Result<(HashMap<u8, u32>, u64), String>
     Ok((hashmap, original_size))
 }
 
+// Build Huffman tree from frequencies, compute code lengths and canonical codes.
 fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<(Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
     let mut nodes = create_nodes(frequencies);
     let num_of_elements = nodes.len();
@@ -52,6 +54,7 @@ fn build_canonical_codes(frequencies: &HashMap<u8, u32>) -> Result<(Vec<u8>, Vec
     Ok((keys, values, code_map))
 }
 
+// Write archive header: original size, symbol count, code-length table.
 fn write_archive_header(file: &mut File, original_size: u64, keys: &[u8], values: &[u8]) -> Result<(), String> {
     file.write_all(&original_size.to_le_bytes())
         .map_err(|_| "Problem writing original size".to_string())?;
@@ -77,6 +80,7 @@ fn write_archive_header(file: &mut File, original_size: u64, keys: &[u8], values
     Ok(())
 }
 
+// Second pass: read input again, write Huffman-coded bits into output.
 fn write_compressed_data(input: &mut File, output: &mut File, keys: &[u8], values: &[u8], codes: &HashMap<u8, u32>) -> Result<(), String> {
     input
         .seek(SeekFrom::Start(0))
@@ -120,6 +124,7 @@ fn write_compressed_data(input: &mut File, output: &mut File, keys: &[u8], value
     Ok(())
 }
 
+// Compress a file using Huffman coding with canonical codes.
 pub fn zip(input_filename: String, output_filename: String) -> Result<String, String> {
     let mut input_file =
         fs::File::open(&input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
@@ -136,6 +141,7 @@ pub fn zip(input_filename: String, output_filename: String) -> Result<String, St
     Ok("File was zipped correctly.".to_string())
 }
 
+// Read and parse archive header: size, symbol count, code-length table.
 fn read_archive_header(file: &mut File) -> Result<(u64, Vec<u8>, Vec<u8>, HashMap<u8, u32>), String> {
     let mut size_buf = [0u8; 8];
     file.read_exact(&mut size_buf)
@@ -185,6 +191,7 @@ fn read_archive_header(file: &mut File) -> Result<(u64, Vec<u8>, Vec<u8>, HashMa
     Ok((output_file_size, keys, values, hashmap))
 }
 
+// Decompress a file: reconstruct tree, decode bits, verify integrity.
 pub fn unzip(input_filename: String, output_filename: String) -> Result<String, String> {
     let mut input_file =
         fs::File::open(input_filename).map_err(|e| format!("Problem reading the file: {}", e))?;
